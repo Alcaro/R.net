@@ -3,6 +3,8 @@
 *.lo
 *.o
 *.obj
+*.dll
+*.sfc
 
 # Precompiled Headers
 *.gch
@@ -26,3 +28,7 @@
 *.exe
 *.out
 *.app
+
+# Directories
+*/bin/
+*/obj/
