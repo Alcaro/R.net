@@ -167,6 +167,7 @@ namespace R.net
         private PixelFormat pixelFormat;
         private bool requiresFullPath;
         private Texture2D texture;
+        private SystemAVInfo av;
 
         //Prevent GC on delegates as long as the wrapper is running
         private Libretro.RetroEnvironmentDelegate _environment;
@@ -233,6 +234,11 @@ namespace R.net
         public Texture2D GetTexture()
         {
             return texture;
+        }
+
+        public SystemAVInfo GetAVInfo()
+        {
+            return av;
         }
 
         private unsafe void RetroVideoRefresh(void* data, uint width, uint height, uint pitch)
@@ -327,13 +333,11 @@ namespace R.net
                                 ,
                                 Blue = (packed & 0x001F) / 31.0f
                             };
-
-                            //pixels = (IntPtr)((int)pixels + size);
+                            packed = 0;
+                            pixels = (IntPtr)(pixels + size);
                         }
-                        //pixels = (IntPtr)((int)rowStart + pitch);
-                        //rowStart = pixels;
-
-
+                        pixels = (IntPtr)(rowStart.ToInt64() + pitch);
+                        rowStart = pixels;
                     }
                     break;
                 case PixelFormat.RETRO_PIXEL_FORMAT_UNKNOWN:
@@ -342,24 +346,17 @@ namespace R.net
             }
 
             Color[] image = new Color[width * height];
-            Pixel[] m_pixelData;
-            uint frameWidth, frameHeight, framePitch;
-            texture = new Texture2D(device, (int)width, (int)height);
+            if(texture == null)
+              texture = new Texture2D(device, (int)width, (int)height);
 
-            m_pixelData = pixelData;
-            frameWidth = width;
-            frameHeight = height;
-            framePitch = pitch;
-
-            if (m_pixelData != null)
+            if (pixelData != null)
             {
-                image = new Color[frameWidth * frameHeight];
+                image = new Color[width * height];
 
-                for (i = 0; i < frameWidth * frameHeight; i++)
+                for (i = 0; i < width * height; i++)
                 {
-                    image[i] = new Color(m_pixelData[i].Red, m_pixelData[i].Green, m_pixelData[i].Blue);
+                    image[i] = new Color(pixelData[i].Red, pixelData[i].Green, pixelData[i].Blue);
                 }
-
                 texture.SetData<Color>(image);
             }
         }
@@ -468,7 +465,7 @@ namespace R.net
 
             Console.WriteLine("\nSystem information:");
 
-            SystemAVInfo av = new SystemAVInfo();
+            av = new SystemAVInfo();
             Libretro.RetroGetSystemAVInfo(ref av);
 
             Console.WriteLine("Geometry:");

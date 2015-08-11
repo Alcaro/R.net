@@ -34,7 +34,7 @@ namespace R.net
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
         private const string core_name = "snes9x_libretro.dll";
-        int i = 0;
+        int scale = 2;
         Wrapper w;
 
         public unsafe game()
@@ -66,6 +66,7 @@ namespace R.net
             w = new Wrapper(core_name, this.graphics.GraphicsDevice);
             w.Init();
             w.LoadGame("mmx.sfc");
+
 
             // TODO: use this.Content to load your game content here
         }
@@ -100,14 +101,18 @@ namespace R.net
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Draw(GameTime gameTime)
         {
+
+            if (graphics.PreferredBackBufferHeight != (int)w.GetAVInfo().geometry.base_height * scale || graphics.PreferredBackBufferWidth != (int)w.GetAVInfo().geometry.base_width * scale)
+            {
+                graphics.PreferredBackBufferHeight = (int)w.GetAVInfo().geometry.base_height * scale;
+                graphics.PreferredBackBufferWidth = (int)w.GetAVInfo().geometry.base_width * scale;
+                graphics.ApplyChanges();
+            }
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
             // TODO: Add your drawing code here
-            /*spriteBatch.Begin();
-            spriteBatch.Draw(tex, new Rectangle(0, 0, 800, 480), Color.White);
-            spriteBatch.End();*/
             spriteBatch.Begin();
-            spriteBatch.Draw(w.GetTexture(), new Rectangle(0, 0, (int)224, (int)224), Color.White);
+            spriteBatch.Draw(w.GetTexture(), new Rectangle(0, 0, (int)w.GetAVInfo().geometry.base_width * scale, (int)w.GetAVInfo().geometry.base_height * scale), Color.White);
             spriteBatch.End();
             base.Draw(gameTime);
         }
