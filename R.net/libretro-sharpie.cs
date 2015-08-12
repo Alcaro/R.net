@@ -19,9 +19,6 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
-
 
 namespace R.net
 {
@@ -166,8 +163,8 @@ namespace R.net
     {
         private PixelFormat pixelFormat;
         private bool requiresFullPath;
-        private Texture2D texture;
         private SystemAVInfo av;
+        Pixel[] frameBuffer;
 
         //Prevent GC on delegates as long as the wrapper is running
         private Libretro.RetroEnvironmentDelegate _environment;
@@ -177,13 +174,9 @@ namespace R.net
         private Libretro.RetroInputPollDelegate _inputPoll;
         private Libretro.RetroInputStateDelegate _inputState;
 
-        //Shouldn't be part of the wrapper, will remove later
-        private GraphicsDevice device;
-
-        public Wrapper(string coreToLoad, GraphicsDevice dev)
+        public Wrapper(string coreToLoad)
         {
             Libretro.InitializeLibrary(coreToLoad);
-            device = dev;
         }
 
         public unsafe void Init()
@@ -231,27 +224,24 @@ namespace R.net
             return true;
         }
 
-        public Texture2D GetTexture()
-        {
-            return texture;
-        }
-
         public SystemAVInfo GetAVInfo()
         {
             return av;
         }
 
+        public Pixel[] GetFramebuffer()
+        {
+            return frameBuffer;
+        }
+
         private unsafe void RetroVideoRefresh(void* data, uint width, uint height, uint pitch)
         {
-
-            //Shouldn't be part of the wrapper, will remove later
-            texture = null;
 
             // Process Pixels one by one for now...this is not the best way to do it 
             // should be using memory streams or something
 
             //Declare the pixel buffer to pass on to the renderer
-            Pixel[] pixelData = new Pixel[width * height];
+            frameBuffer = new Pixel[width * height];
 
             //Get the array from unmanaged memory as a pointer
             IntPtr pixels = (IntPtr)data;
@@ -273,7 +263,7 @@ namespace R.net
                         for (j = 0; j < width; j++)
                         {
                             Int16 packed = Marshal.ReadInt16(pixels);
-                            pixelData[i * width + j] = new Pixel()
+                            frameBuffer[i * width + j] = new Pixel()
                             {
                                 Alpha = 1
                                 ,
@@ -297,7 +287,7 @@ namespace R.net
                         for (j = 0; j < width; j++)
                         {
                             Int32 packed = Marshal.ReadInt32(pixels);
-                            pixelData[i * width + j] = new Pixel()
+                            frameBuffer[i * width + j] = new Pixel()
                             {
                                 Alpha = 1
                                 ,
@@ -323,7 +313,7 @@ namespace R.net
                         for (j = 0; j < width; j++)
                         {
                             Int16 packed = Marshal.ReadInt16(pixels);
-                            pixelData[i * width + j] = new Pixel()
+                            frameBuffer[i * width + j] = new Pixel()
                             {
                                 Alpha = 1
                                 ,
@@ -341,24 +331,9 @@ namespace R.net
                     }
                     break;
                 case PixelFormat.RETRO_PIXEL_FORMAT_UNKNOWN:
-                    pixelData = null;
+                    frameBuffer = null;
                     break;
-            }
-
-            Color[] image = new Color[width * height];
-            if(texture == null)
-              texture = new Texture2D(device, (int)width, (int)height);
-
-            if (pixelData != null)
-            {
-                image = new Color[width * height];
-
-                for (i = 0; i < width * height; i++)
-                {
-                    image[i] = new Color(pixelData[i].Red, pixelData[i].Green, pixelData[i].Blue);
-                }
-                texture.SetData<Color>(image);
-            }
+            }            
         }
 
         private unsafe void RetroAudioSample(Int16 left, Int16 right)
