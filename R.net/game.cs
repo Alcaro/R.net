@@ -17,6 +17,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Audio;
 using System;
 using System.Diagnostics;
 using System.Collections.Generic;
@@ -42,6 +43,14 @@ namespace R.net
         int _fps = 0;
         Texture2D _output;
         SystemAVInfo _avinfo;
+
+        private int SampleRate = 44100;
+        private int Channels = 2;
+        private DynamicSoundEffectInstance _instance;
+
+        private int SamplesPerBuffer = 3000;
+        private float[,] _workingBuffer;
+        private byte[] _xnaBuffer;
 
         public unsafe game()
         {
@@ -74,7 +83,19 @@ namespace R.net
             _libretro.Init();
             _libretro.LoadGame("smw.sfc");
             _avinfo = _libretro.GetAVInfo();
-            _output = new Texture2D(GraphicsDevice, (int)_avinfo.geometry.base_width, (int)_avinfo.geometry.base_height);           
+            _output = new Texture2D(GraphicsDevice, (int)_avinfo.geometry.base_width, (int)_avinfo.geometry.base_height);
+
+
+            SampleRate = (int)_libretro.GetAVInfo().timing.sample_rate;
+            // Create DynamicSoundEffectInstance object and start it
+            _instance = new DynamicSoundEffectInstance(SampleRate, Channels == 2 ? AudioChannels.Stereo : AudioChannels.Mono);
+            _instance.Play();
+
+            // Create buffers
+            const int bytesPerSample = 2;
+            _xnaBuffer = new byte[Channels * SamplesPerBuffer * bytesPerSample];
+            _workingBuffer = new float[Channels, SamplesPerBuffer];
+
         }
 
         /// <summary>
@@ -107,6 +128,9 @@ namespace R.net
                 _frames = 0;
                 _time = 0;
             }
+            while (_instance.PendingBufferCount < 3)
+                SubmitBuffer();
+
             base.Update(gameTime);
         }
 
@@ -152,5 +176,70 @@ namespace R.net
             }
             return image;
         }
+
+        private void FillWorkingBuffer()
+        {
+
+            IntPtr data; data = _libretro.GetSoundBuffer().data;
+            for (int i = 0; i < SamplesPerBuffer; i++)
+            {
+                Int16 chunk = Marshal.ReadInt16(data);
+                _workingBuffer[0, i] = chunk;
+                data = data + (sizeof(Int16));
+
+                chunk = Marshal.ReadInt16(data);
+                _workingBuffer[1, i] = chunk;
+                data = data + (sizeof(Int16));
+            }
+        }
+
+        private void SubmitBuffer()
+        {
+            FillWorkingBuffer();
+            ConvertBuffer(_workingBuffer, _xnaBuffer);
+            _instance.SubmitBuffer(_xnaBuffer);
+        }
+
+        /// <summary>
+        /// Converts a bi-dimensional (Channel, Samples) floating point buffer to a PCM (byte) buffer with interleaved channels
+        /// </summary>
+        private static void ConvertBuffer(float[,] from, byte[] to)
+        {
+            const int bytesPerSample = 2;
+            int channels = from.GetLength(0);
+            int bufferSize = from.GetLength(1);
+
+            // Make sure the buffer sizes are correct
+            System.Diagnostics.Debug.Assert(to.Length == bufferSize * channels * bytesPerSample, "Buffer sizes are mismatched.");
+
+            for (int i = 0; i < bufferSize; i++)
+            {
+                for (int c = 0; c < channels; c++)
+                {
+                    // First clamp the value to the [-1.0..1.0] range
+                    float floatSample = MathHelper.Clamp(from[c, i], -1.0f, 1.0f);
+
+                    // Convert it to the 16 bit [short.MinValue..short.MaxValue] range
+                    short shortSample = (short)(floatSample >= 0.0f ? floatSample * short.MaxValue : floatSample * short.MinValue * -1);
+
+                    // Calculate the right index based on the PCM format of interleaved samples per channel [L-R-L-R]
+                    int index = i * channels * bytesPerSample + c * bytesPerSample;
+
+                    // Store the 16 bit sample as two consecutive 8 bit values in the buffer with regard to endian-ness
+                    if (!BitConverter.IsLittleEndian)
+                    {
+                        to[index] = (byte)(shortSample >> 8);
+                        to[index + 1] = (byte)shortSample;
+                    }
+                    else
+                    {
+                        to[index] = (byte)shortSample;
+                        to[index + 1] = (byte)(shortSample >> 8);
+                    }
+                }
+            }
+        }
+
+
     }
 }

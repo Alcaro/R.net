@@ -42,7 +42,6 @@ namespace R.net
         RETRO_PIXEL_FORMAT_UNKNOWN = int.MaxValue
     }
 
-    //Shouldn't be part of the wrapper, will remove later
     [StructLayout(LayoutKind.Sequential)]
     public class Pixel
     {
@@ -50,6 +49,13 @@ namespace R.net
         public float Red;
         public float Green;
         public float Blue;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public class Sample
+    {
+        public IntPtr data;
+        public uint frames;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -165,6 +171,7 @@ namespace R.net
         private bool requiresFullPath;
         private SystemAVInfo av;
         Pixel[] frameBuffer;
+        Sample soundBuffer;
 
         //Prevent GC on delegates as long as the wrapper is running
         private Libretro.RetroEnvironmentDelegate _environment;
@@ -232,6 +239,11 @@ namespace R.net
         public Pixel[] GetFramebuffer()
         {
             return frameBuffer;
+        }
+
+        public Sample GetSoundBuffer()
+        {
+            return soundBuffer;
         }
 
         private unsafe void RetroVideoRefresh(void* data, uint width, uint height, uint pitch)
@@ -343,6 +355,9 @@ namespace R.net
 
         private unsafe void RetroAudioSampleBatch(Int16* data, uint frames)
         {
+            soundBuffer = new Sample();
+            soundBuffer.data = (IntPtr)data;
+            soundBuffer.frames = frames;
             return;
         }
 
