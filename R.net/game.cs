@@ -34,23 +34,27 @@ namespace R.net
     {
         GraphicsDeviceManager graphics;
         SpriteBatch spriteBatch;
+        Wrapper _libretro;
 
         private const string _core = "snes9x_libretro.dll";
+
+
         int scale = 2;
-        Wrapper _libretro;
+        
         int _frames = 0;
         float _time = 0.0f;
         int _fps = 0;
-        Texture2D _output;
+
+        Texture2D _frameBuffer;
         SystemAVInfo _avinfo;
 
-        private int SampleRate = 44100;
-        private int Channels = 2;
-        private DynamicSoundEffectInstance _instance;
-
-        private int SamplesPerBuffer = 3000;
+        private int _sampleRate;
+        private int _channels = 2;
+        private int _bufferSize = 300;
         private float[,] _workingBuffer;
-        private byte[] _xnaBuffer;
+        private byte[] _audioBuffer;
+        private int bytesPerSample = 2;
+        SoundEffect sound;
 
         public unsafe game()
         {
@@ -58,15 +62,8 @@ namespace R.net
             Content.RootDirectory = "Content";
         }
 
-        /// <summary>
-        /// Allows the game to perform any initialization it needs to before starting to run.
-        /// This is where it can query for any required services and load any non-graphic
-        /// related content.  Calling base.Initialize will enumerate through any components
-        /// and initialize them as well.
-        /// </summary>
         protected override void Initialize()
         {
-            // TODO: Add your initialization logic here
             base.Initialize();
         }
 
@@ -78,24 +75,18 @@ namespace R.net
         {
             // Create a new SpriteBatch, which can be used to draw textures.
             spriteBatch = new SpriteBatch(GraphicsDevice);
-            // TODO: use this.Content to load your game content here
+            
             _libretro = new Wrapper(_core);
             _libretro.Init();
             _libretro.LoadGame("smw.sfc");
             _avinfo = _libretro.GetAVInfo();
-            _output = new Texture2D(GraphicsDevice, (int)_avinfo.geometry.base_width, (int)_avinfo.geometry.base_height);
+            _frameBuffer = new Texture2D(GraphicsDevice, (int)_avinfo.geometry.base_width, (int)_avinfo.geometry.base_height);
 
+            _sampleRate = (int)_libretro.GetAVInfo().timing.sample_rate;
+            _audioBuffer = new byte[_channels * _bufferSize * bytesPerSample];
+            _workingBuffer = new float[_channels, _bufferSize];
 
-            SampleRate = (int)_libretro.GetAVInfo().timing.sample_rate;
-            // Create DynamicSoundEffectInstance object and start it
-            _instance = new DynamicSoundEffectInstance(SampleRate, Channels == 2 ? AudioChannels.Stereo : AudioChannels.Mono);
-            _instance.Play();
-
-            // Create buffers
-            const int bytesPerSample = 2;
-            _xnaBuffer = new byte[Channels * SamplesPerBuffer * bytesPerSample];
-            _workingBuffer = new float[Channels, SamplesPerBuffer];
-
+            sound = new SoundEffect(_audioBuffer, _sampleRate, AudioChannels.Stereo);
         }
 
         /// <summary>
@@ -104,7 +95,7 @@ namespace R.net
         /// </summary>
         protected override void UnloadContent()
         {
-            // TODO: Unload any non ContentManager content here
+
         }
 
         /// <summary>
@@ -117,21 +108,27 @@ namespace R.net
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
-            // TODO: Add your update logic here
             _libretro.Update();
-            _time += (float)gameTime.ElapsedGameTime.TotalMilliseconds;
 
-            // 1 Second has passed
+            UpdateFPS(gameTime);
+            
+            SubmitBuffer();
+            sound.Play();
+
+
+            base.Update(gameTime);
+        }
+
+        private void UpdateFPS(GameTime gameTime)
+        {
+            _time += (float)gameTime.ElapsedGameTime.TotalMilliseconds;
             if (_time >= 1000.0f)
             {
                 _fps = _frames;
                 _frames = 0;
                 _time = 0;
             }
-            while (_instance.PendingBufferCount < 3)
-                SubmitBuffer();
-
-            base.Update(gameTime);
+            this.Window.Title = _fps.ToString();
         }
 
         /// <summary>
@@ -151,12 +148,12 @@ namespace R.net
             }
             GraphicsDevice.Clear(Color.CornflowerBlue);
             _frames++;
-            // TODO: Add your drawing code here
+
             spriteBatch.Begin();
 
-            this.Window.Title = _fps.ToString();
-            _output.SetData<Color>(ProcessFramebuffer(_libretro.GetFramebuffer(), (uint)_libretro.GetAVInfo().geometry.base_width, (uint)_libretro.GetAVInfo().geometry.base_height));
-            spriteBatch.Draw(_output, new Rectangle(0, 0, (int)_avinfo.geometry.base_width * scale, (int)_avinfo.geometry.base_height * scale), Color.White);
+            
+            _frameBuffer.SetData<Color>(ProcessFramebuffer(_libretro.GetFramebuffer(), (uint)_libretro.GetAVInfo().geometry.base_width, (uint)_libretro.GetAVInfo().geometry.base_height));
+            spriteBatch.Draw(_frameBuffer, new Rectangle(0, 0, (int)_avinfo.geometry.base_width * scale, (int)_avinfo.geometry.base_height * scale), Color.White);
             spriteBatch.End();
             base.Draw(gameTime);
         }
@@ -180,30 +177,34 @@ namespace R.net
         private void FillWorkingBuffer()
         {
 
-            IntPtr data; data = _libretro.GetSoundBuffer().data;
-            for (int i = 0; i < SamplesPerBuffer; i++)
+            IntPtr data;
+            data = _libretro.GetSoundBuffer().data;
+            int i;
+
+            for (i = 0; i < _libretro.GetSoundBuffer().frames; i++)
             {
                 Int16 chunk = Marshal.ReadInt16(data);
-                _workingBuffer[0, i] = chunk;
+                _workingBuffer[0, i] = (float)chunk / Int16.MaxValue;
                 data = data + (sizeof(Int16));
 
                 chunk = Marshal.ReadInt16(data);
-                _workingBuffer[1, i] = chunk;
+                _workingBuffer[1, i] = (float)chunk / Int16.MaxValue;
                 data = data + (sizeof(Int16));
             }
+
+
         }
 
         private void SubmitBuffer()
         {
             FillWorkingBuffer();
-            ConvertBuffer(_workingBuffer, _xnaBuffer);
-            _instance.SubmitBuffer(_xnaBuffer);
+            ConvertBuffer(_workingBuffer, _audioBuffer);
         }
 
         /// <summary>
         /// Converts a bi-dimensional (Channel, Samples) floating point buffer to a PCM (byte) buffer with interleaved channels
         /// </summary>
-        private static void ConvertBuffer(float[,] from, byte[] to)
+        private void ConvertBuffer(float[,] from, byte[] to)
         {
             const int bytesPerSample = 2;
             int channels = from.GetLength(0);
@@ -211,7 +212,6 @@ namespace R.net
 
             // Make sure the buffer sizes are correct
             System.Diagnostics.Debug.Assert(to.Length == bufferSize * channels * bytesPerSample, "Buffer sizes are mismatched.");
-
             for (int i = 0; i < bufferSize; i++)
             {
                 for (int c = 0; c < channels; c++)
@@ -238,6 +238,7 @@ namespace R.net
                     }
                 }
             }
+
         }
 
 
