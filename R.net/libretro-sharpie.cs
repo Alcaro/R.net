@@ -475,55 +475,55 @@ namespace R.net
     public unsafe class Libretro
     {
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl]
         public delegate int RetroApiVersionDelegate();
         public static RetroApiVersionDelegate RetroApiVersion;
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void RetroInitDelegate();
         public static RetroInitDelegate RetroInit;
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void RetroGetSystemInfoDelegate(ref SystemInfo info);
         public static RetroGetSystemInfoDelegate RetroGetSystemInfo;
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void RetroGetSystemAVInfoDelegate(ref SystemAVInfo info);
         public static RetroGetSystemAVInfoDelegate RetroGetSystemAVInfo;
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate bool RetroLoadGameDelegate(ref GameInfo game);
         public static RetroLoadGameDelegate RetroLoadGame;
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void RetroSetVideoRefreshDelegate(RetroVideoRefreshDelegate r);
         public static RetroSetVideoRefreshDelegate RetroSetVideoRefresh;
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void RetroSetAudioSampleDelegate(RetroAudioSampleDelegate r);
         public static RetroSetAudioSampleDelegate RetroSetAudioSample;
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void RetroSetAudioSampleBatchDelegate(RetroAudioSampleBatchDelegate r);
         public static RetroSetAudioSampleBatchDelegate RetroSetAudioSampleBatch;
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void RetroSetInputPollDelegate(RetroInputPollDelegate r);
         public static RetroSetInputPollDelegate RetroSetInputPoll;
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void RetroSetInputStateDelegate(RetroInputStateDelegate r);
         public static RetroSetInputStateDelegate RetroSetInputState;
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate bool RetroSetEnvironmentDelegate(RetroEnvironmentDelegate r);
         public static RetroSetEnvironmentDelegate RetroSetEnvironment;
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void RetroRunDelegate();
         public static RetroRunDelegate RetroRun;
 
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void RetroDeInitDelegate();
         public static RetroDeInitDelegate RetroDeInit;
 
